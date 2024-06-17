@@ -19,28 +19,16 @@ def handle_client(data, addr):
         message_type, *content = data.decode('utf-8').split('|')
         
         if message_type == 'FILE':
-            filename, filesize = content
+            filename, filesize, udp_ip_client, udp_port_client, name_client = content
             filesize = int(filesize)
 
-            with open(f'received_{filename}', 'wb') as f:
-                bytes_received = 0
-                while bytes_received < filesize:
-                    packet, _ = sock.recvfrom(BUFFER_SIZE)
-                    f.write(packet)
-                    bytes_received += len(packet)
-
+            
             # Enviar arquivo recebido para outros clientes
+            print(f"Mensagem recebida de {addr}")
             for client in clients:
                 if client != addr:
-                    with open(f'received_{filename}', 'rb') as f:
-                        while (chunk := f.read(BUFFER_SIZE)):
-                            sock.sendto(chunk, client)
-        elif message_type == 'MESSAGE':
-            message = content[0]
-            print(f"Mensagem recebida de {addr}: {message}")
-            for client in clients:
-                if client != addr:
-                    sock.sendto(data, client)
+                    sock.sendto(f'FILE|{filename}|{udp_ip_client}|{udp_port_client}|{name_client}|{filesize}', client)
+
         else:
             print("Tipo de mensagem desconhecido:", message_type)
 
