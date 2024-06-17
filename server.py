@@ -1,6 +1,7 @@
 import socket
 import threading
 import os
+import datetime
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -19,15 +20,24 @@ def handle_client(data, addr):
         message_type, *content = data.decode('utf-8').split('|')
         
         if message_type == 'FILE':
-            filename, filesize, udp_ip_client, udp_port_client, name_client = content
-            filesize = int(filesize)
+            filename, total_packets, username = content
+            total_packets = int(total_packets)
+            file_content = bytearray()
 
-            
+            for _ in range(total_packets):
+                packet, _ = sock.recvfrom(BUFFER_SIZE)
+                file_content.extend(packet)
+
             # Enviar arquivo recebido para outros clientes
-            print(f"Mensagem recebida de {addr}")
+            print(f"Mensagem recebida de {username}")
+
+            message_text = file_content.decode('utf-8')
+            date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+            final_message = f"{addr[0]}:{addr[1]}/~{username}: {message_text} {date_now}"
+                
             for client in clients:
                 if client != addr:
-                    sock.sendto(f'FILE|{filename}|{udp_ip_client}|{udp_port_client}|{name_client}|{filesize}', client)
+                    sock.sendto(final_message.encode('utf-8'), client)
 
         else:
             print("Tipo de mensagem desconhecido:", message_type)
