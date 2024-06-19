@@ -28,10 +28,14 @@ def send_file(filename):
 
 def send_message(message):
     filename = f'message-{name}.txt'
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         f.write(message)
     send_file(filename)
     os.remove(filename)
+
+def send_login_message():
+    login_message = f"LOGIN|{name}".encode('utf-8')
+    client_socket.sendto(login_message, (UDP_IP, UDP_PORT))
 
 def receive_messages():
     while True:
@@ -49,6 +53,7 @@ receive_thread.start()
 
 print("Cliente iniciado. Primeiramente, qual o seu nome?")
 name = input()
+send_login_message()
 print(f"Olá, {name}! Vamos começar o chat! Digite sua mensagem abaixo:")
 
 while True:

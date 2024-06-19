@@ -17,9 +17,21 @@ def handle_client(data, addr):
         if addr not in clients:
             clients.add(addr)
 
-        message_type, *content = data.decode('utf-8').split('|')
+        try:
+            message_type, *content = data.decode('utf-8').split('|')
+        except UnicodeDecodeError as e:
+            print(f"Erro de decodificação de dados: {e}")
+            return
         
-        if message_type == 'FILE':
+        if message_type == 'LOGIN':
+            username = content[0]
+            login_message = f"🔥 {username} entrou no chat."
+            print(f'usuário {addr} com o username {username} entrou no chat.')
+            for client in clients:
+                if client != addr:
+                    sock.sendto(login_message.encode('utf-8'), client)
+
+        elif message_type == 'FILE':
             filename, total_packets, username = content
             total_packets = int(total_packets)
             file_content = bytearray()
@@ -31,7 +43,12 @@ def handle_client(data, addr):
             # Enviar arquivo recebido para outros clientes
             print(f"Mensagem recebida de {username}")
 
-            message_text = file_content.decode('utf-8')
+            try:
+                message_text = file_content.decode('utf-8')
+            except UnicodeDecodeError as e:
+                print(f"Erro de decodificação do conteúdo do arquivo: {e}")
+                return
+            
             date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
             final_message = f"{addr[0]}:{addr[1]}/~{username}: {message_text} {date_now}"
                 
