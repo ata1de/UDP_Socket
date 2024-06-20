@@ -40,8 +40,34 @@ def send_login_message():
 def receive_messages():
     while True:
         try:
-            data, _ = client_socket.recvfrom(BUFFER_SIZE)
-            print(data.decode('utf-8'))
+            data, client_addr = client_socket.recvfrom(BUFFER_SIZE)
+            try:
+                message_type, *content = data.decode('utf-8').split('|')
+            except UnicodeDecodeError as e:
+                print(f"Erro ao receber o message type {e}")
+                continue
+            if message_type == 'FILE':
+                filename, total_packets, username = content
+                total_packets = int(total_packets)
+                file_content = bytearray()
+
+                for _ in range(total_packets):
+                    packet, _ = client_socket.recvfrom(BUFFER_SIZE)
+                    file_content.extend(packet) 
+
+                try:
+                    message_text = file_content.decode('utf-8')
+                    date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+                    final_message = f"{client_addr[0]}:{client_addr[1]}/~{username}: {message_text} {date_now}"
+                    print(final_message)
+
+                except UnicodeDecodeError as e:
+                    print(f"Erro ao receber a mensagem: {e}")
+                return
+            
+            elif message_type == 'MSG':
+                print(content[0])
+
         except socket.timeout:
             continue
         except Exception as e:

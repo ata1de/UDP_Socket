@@ -12,6 +12,32 @@ sock.bind((UDP_IP, UDP_PORT))
 
 clients = set()
 
+def send_file(filename, name, addr):
+    with open(filename, 'rb') as f:
+        file_content = f.read()
+    
+    total_size = len(file_content)
+    total_packets = (total_size // BUFFER_SIZE) + 1
+    header = f"FILE|{filename}|{total_packets}|{name}".encode('utf-8')
+    
+    for client in clients:
+        if client != addr:
+            sock.sendto(header, client)
+    
+            for i in range(total_packets):
+                start = i * BUFFER_SIZE
+                end = start + BUFFER_SIZE
+                packet = file_content[start:end]
+                sock.sendto(packet, client)
+
+
+def send_message(message, name, addr):
+    filename = f'message-{name}.txt'
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(message)
+    send_file(filename, name, addr)
+    os.remove(filename)
+
 def handle_client(data, addr):
     try:
         if addr not in clients:
@@ -25,7 +51,7 @@ def handle_client(data, addr):
         
         if message_type == 'LOGIN':
             username = content[0]
-            login_message = f"🔥 {username} entrou no chat."
+            login_message = f"MSG|🔥 {username} entrou no chat."
             print(f'usuário {addr} com o username {username} entrou no chat.')
             for client in clients:
                 if client != addr:
@@ -45,16 +71,19 @@ def handle_client(data, addr):
 
             try:
                 message_text = file_content.decode('utf-8')
+
+                send_message(message_text, username, addr)
+                
             except UnicodeDecodeError as e:
                 print(f"Erro de decodificação do conteúdo do arquivo: {e}")
                 return
             
-            date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-            final_message = f"{addr[0]}:{addr[1]}/~{username}: {message_text} {date_now}"
+            # date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+            # final_message = f"{addr[0]}:{addr[1]}/~{username}: {message_text} {date_now}"
                 
-            for client in clients:
-                if client != addr:
-                    sock.sendto(final_message.encode('utf-8'), client)
+            # for client in clients:
+            #     if client != addr:
+            #         sock.sendto(final_message.encode('utf-8'), client)
 
         else:
             print("Tipo de mensagem desconhecido:", message_type)
