@@ -3,6 +3,7 @@ import threading
 import os
 import random
 import string
+import hashlib
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -15,20 +16,35 @@ def random_lowercase_string():
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(5))
 
-def send_file(filename,name, client,addr):
+def calculate_checksum(data):
+    return hashlib.md5(data.encode('utf-8')).hexdigest()
+
+def send_packet(packet, sequence_number, client):
+    checksum = calculate_checksum(packet)
+    packet_with_checksum = f"{sequence_number}|{checksum}|{packet}"
+    sock.sendto(packet_with_checksum.encode('utf-8'), client)
+
+def send_ack(sequence_number, client):
+    ack_packet = f"{sequence_number}|ACK"
+    checksum = calculate_checksum(ack_packet)
+    ack_packet_with_checksum = f"{sequence_number}|{checksum}|ACK"
+    sock.sendto(ack_packet_with_checksum.encode('utf-8'), client)
+
+def send_file(filename, name, client, addr):
     with open(filename, 'rb') as f:
         file_content = f.read()
     
     total_size = len(file_content)
     total_packets = (total_size // (BUFFER_SIZE - 50))
-    total_packets = total_packets if total_packets > 0 else 1    
+    total_packets = total_packets if total_packets > 0 else 1
     randomId = random_lowercase_string()
-        
+    sequence_number = 0
+
     for i in range(total_packets):
-        start = i * (BUFFER_SIZE -50)
+        start = i * (BUFFER_SIZE - 50)
         end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{file_content[start:end].decode('utf-8')}".encode("utf-8")
-        sock.sendto(packet, client)
+        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{file_content[start:end].decode('utf-8')}"
+        send_packet(packet, sequence_number, client)
 
 def send_message(message, name, client, addr):
     filename = f'message-{name}.txt'
@@ -43,11 +59,27 @@ def handle_client(data, addr):
             clients.add(addr)
 
         try:
-            message_type, *content = data.decode('utf-8').split('|')
-
+            sequence_number, received_checksum, message_type, *content = data.decode('utf-8').split('|')
         except UnicodeDecodeError as e:
             print(f"Erro de decodificação de dados: {e}")
             return
+        
+        print(sequence_number, received_checksum, message_type)
+        print(content)
+        
+        if calculate_checksum(f"{message_type}|{content}") == received_checksum:
+            # Envia o ACK do último pacote recebido com sucesso
+            send_ack(last_ack[addr], addr)
+            return
+        
+        if addr in last_ack and int(sequence_number) == int(last_ack[addr]):
+            send_ack(last_ack[addr], addr)
+            return
+
+        
+
+        send_ack(sequence_number, addr)
+        last_ack[addr] = sequence_number
         
         if message_type == 'LOGIN':
             username = content[0]
@@ -97,6 +129,7 @@ def server():
 
 clients = set()
 messages = {}
+last_ack = {}  # Armazena o último número de sequência confirmado para cada cliente
 
 server_thread = threading.Thread(target=server)
 server_thread.daemon = True  # Define a thread como daemon para encerrar junto com o programa principal

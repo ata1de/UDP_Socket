@@ -4,39 +4,60 @@ import threading
 import os
 import random
 import string
+import hashlib
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
 BUFFER_SIZE = 1024
+TIMEOUT = 2  # Timeout de 2 segundos
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-client_socket.settimeout(10)  # Define um timeout para evitar bloqueios
+client_socket.settimeout(TIMEOUT)  # Define um timeout para evitar bloqueios
 
 def random_lowercase_string():
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(5))
+
+def calculate_checksum(data):
+    return hashlib.md5(data.encode('utf-8')).hexdigest()
+
+def send_packet(packet, sequence_number):
+    checksum = calculate_checksum(packet)
+    # print(checksum)
+    packet_with_checksum = f"{sequence_number}|{checksum}|{packet}"
+    print(packet_with_checksum)
+    client_socket.sendto(packet_with_checksum.encode('utf-8'), (UDP_IP, UDP_PORT))
 
 def send_file(filename):
     with open(filename, 'rb') as f:
         file_content = f.read()
 
     total_size = len(file_content)
-
     total_packets = (total_size // (BUFFER_SIZE - 50))
     total_packets = total_packets if total_packets > 0 else 1
 
-    # print("total de pacotes " + str(total_packets))
     randomId = random_lowercase_string()
+    sequence_number = 0
+    ack_received = False
+
     for i in range(total_packets):
         start = i * (BUFFER_SIZE - 50)
         end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{file_content[start:end].decode('utf-8')}".encode("utf-8")
-
-        # print()
-        # print("pacote " + str(i))
-        # print(packet.decode('utf-8'))
-        # print(file_content[start:end])
-        client_socket.sendto(packet, (UDP_IP, UDP_PORT))
+        packet = f"{randomId}|{total_packets}|{name}|{file_content[start:end].decode('utf-8')}"
+        
+        while not ack_received:
+            send_packet(packet, sequence_number)
+            try:
+                ack, _ = client_socket.recvfrom(BUFFER_SIZE)
+                ack_sequence, ack_checksum, ack_type = ack.decode('utf-8').split('|')
+                
+                if ack_type == 'ACK' and ack_sequence == str(sequence_number):
+                    ack_received = True
+                    sequence_number = (sequence_number + 1) % 2  # Alterna entre 0 e 1
+            except socket.timeout:
+                print("Timeout, retransmitindo pacote...")
+                
+        ack_received = False
 
 def send_message(message):
     filename = f'message-{name}.txt'
