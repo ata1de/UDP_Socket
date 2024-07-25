@@ -65,7 +65,11 @@ def receive_messages():
                 print(*content)
 
             elif (message_type in messages):
-                total_packets, name, addrIp, addrPort, packet = content
+                total_packets, name, addrIp, addrPort, packet, checksum = content
+                header = [message_type, total_packets, name, addrIp, addrPort, packet]
+                header = '|'.join(header)
+                if checksum == calculate_checksum(header):
+                    print(f"Checksum válido para o pacote")
                 messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
                 if (int(total_packets) == len(messages[message_type]["packets"])):
                     date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
@@ -76,7 +80,11 @@ def receive_messages():
                     print(final_message)   
                     print()                 
             else: 
-                total_packets, name, addrIp, addrPort, packet =  content
+                total_packets, name, addrIp, addrPort, packet, checksum =  content
+                header = [message_type, total_packets, name, addrIp, addrPort, packet]
+                header = '|'.join(header)
+                if checksum == calculate_checksum(header):
+                    print(f"Checksum válido para o pacote")
                 messages[message_type] = {"name": name, "packets": [packet] }
                 if (total_packets == '1'):
                     date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")

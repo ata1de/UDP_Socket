@@ -31,8 +31,10 @@ def send_file(filename,name, client,addr):
     for i in range(total_packets):
         start = i * (BUFFER_SIZE -50)
         end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{file_content[start:end].decode('utf-8')}".encode("utf-8")
-        sock.sendto(packet, client)
+        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{file_content[start:end].decode('utf-8')}"
+        checksum = calculate_checksum(packet)
+        packet_with_checksum = f"{packet}|{checksum}".encode("utf-8")
+        sock.sendto(packet_with_checksum, client)
 
 def send_message(message, name, client, addr):
     filename = f'message-{name}.txt'
