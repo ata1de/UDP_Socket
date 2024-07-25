@@ -16,6 +16,11 @@ def random_lowercase_string():
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(5))
 
+def checksum(s):
+    # Calcula o checksum somando os valores ASCII dos caracteres na string s
+    checksum_value = sum(ord(char) for char in s)
+    return checksum_value
+
 def send_file(filename):
     with open(filename, 'rb') as f:
         file_content = f.read()
@@ -25,17 +30,13 @@ def send_file(filename):
     total_packets = (total_size // (BUFFER_SIZE - 50))
     total_packets = total_packets if total_packets > 0 else 1
 
-    # print("total de pacotes " + str(total_packets))
     randomId = random_lowercase_string()
     for i in range(total_packets):
         start = i * (BUFFER_SIZE - 50)
         end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{file_content[start:end].decode('utf-8')}".encode("utf-8")
-
-        # print()
-        # print("pacote " + str(i))
-        # print(packet.decode('utf-8'))
-        # print(file_content[start:end])
+        packet_data = file_content[start:end].decode('utf-8')
+        packet_checksum = checksum(packet_data)  # Calcula o checksum do pacote
+        packet = f"{randomId}|{total_packets}|{name}|{packet_data}|{packet_checksum}".encode("utf-8")
         client_socket.sendto(packet, (UDP_IP, UDP_PORT))
 
 def send_message(message):
@@ -55,26 +56,24 @@ def receive_messages():
             data, _ = client_socket.recvfrom(BUFFER_SIZE)
             message_type, *content = data.decode('utf-8').split('|')
 
-            if (message_type == "LOGIN"):
+            if message_type == "LOGIN":
                 print(*content)
-
-            elif (message_type in messages):
-                total_packets, name, addrIp, addrPort, packet = content
-                messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
-                if (int(total_packets) == len(messages[message_type]["packets"])):
+            elif message_type in messages:
+                total_packets, name, addrIp, addrPort, packet_data, received_checksum = content
+                calculated_checksum = checksum(packet_data)
+                if int(total_packets) == len(messages[message_type]["packets"]) + 1 and calculated_checksum == int(received_checksum):
+                    messages[message_type] = {"name": name, "packets": [*messages[message_type]["packets"], packet_data]}
                     date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-                    gatheredPackets = ""
-                    for i in range(int(total_packets)):
-                        gatheredPackets +=  messages[message_type]["packets"][i]
+                    gatheredPackets = "".join(messages[message_type]["packets"])
                     final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
-                    print(final_message)   
-                    print()                 
-            else: 
-                total_packets, name, addrIp, addrPort, packet =  content
-                messages[message_type] = {"name": name, "packets": [packet] }
-                if (total_packets == '1'):
+                    print(final_message)
+                    print()
+            else:
+                total_packets, name, addrIp, addrPort, packet_data, received_checksum = content
+                calculated_checksum = checksum(packet_data)
+                if total_packets == '1' and calculated_checksum == int(received_checksum):
                     date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-                    final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"
+                    final_message = f"{addrIp}:{addrPort}/~{name}: {packet_data} {date_now}"
                     print(final_message)
                     print()
 

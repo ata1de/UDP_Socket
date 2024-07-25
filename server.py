@@ -15,7 +15,13 @@ def random_lowercase_string():
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(5))
 
-def send_file(filename,name, client,addr):
+def calculate_checksum(data):
+    checksum = 0
+    for char in data:
+        checksum += ord(char)
+    return checksum
+
+def send_file(filename, name, client, addr):
     with open(filename, 'rb') as f:
         file_content = f.read()
     
@@ -23,11 +29,15 @@ def send_file(filename,name, client,addr):
     total_packets = (total_size // (BUFFER_SIZE - 50))
     total_packets = total_packets if total_packets > 0 else 1    
     randomId = random_lowercase_string()
+    
+    file_checksum = calculate_checksum(file_content.decode('utf-8'))
         
     for i in range(total_packets):
-        start = i * (BUFFER_SIZE -50)
+        start = i * (BUFFER_SIZE - 50)
         end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{file_content[start:end].decode('utf-8')}".encode("utf-8")
+        packet_data = file_content[start:end].decode('utf-8')
+        checksum = calculate_checksum(packet_data)
+        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{packet_data}|{checksum}".encode("utf-8")
         sock.sendto(packet, client)
 
 def send_message(message, name, client, addr):
@@ -43,8 +53,10 @@ def handle_client(data, addr):
             clients.add(addr)
 
         try:
-            message_type, *content = data.decode('utf-8').split('|')
-
+            data_str = data.decode('utf-8')
+            parts = data_str.split('|')
+            message_type = parts[0]
+            content = parts[1:]
         except UnicodeDecodeError as e:
             print(f"Erro de decodificação de dados: {e}")
             return
@@ -58,10 +70,10 @@ def handle_client(data, addr):
                     sock.sendto(login_message.encode('utf-8'), client)
 
         elif message_type in messages:
-            total_packets, name, packetData = content
-            messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packetData] }
+            total_packets, name, packetData, checksum = content
+            messages[message_type] = {"name": name, "packets": [*messages[message_type]["packets"], packetData] }
 
-            if (len(messages[message_type]["packets"]) == int(total_packets)):
+            if len(messages[message_type]["packets"]) == int(total_packets):
                 file_content = bytearray()
                 for i in range(int(total_packets)):
                     file_content.extend(messages[message_type]["packets"][i].encode("utf-8"))
@@ -70,10 +82,10 @@ def handle_client(data, addr):
                     if client != addr:
                         send_message(message_text, name, client, addr)
         else: 
-            total_packets, name, packetData = content
+            total_packets, name, packetData, checksum = content
             messages[message_type] = {"name": name, "packets": [packetData] }
 
-            if (total_packets == '1'):
+            if total_packets == '1':
                 file_content = bytearray()
                 for i in range(int(total_packets)):
                     file_content.extend(messages[message_type]['packets'][i].encode("utf-8"))
