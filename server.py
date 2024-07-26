@@ -65,9 +65,7 @@ def handle_client(data, addr):
 
         elif message_type in messages:
             total_packets, name, packetData, checksum = content
-            packet = [message_type, total_packets, name, packetData]
-            packet = '|'.join(packet)
-            if checksum == calculate_checksum(packet):
+            if checksum == calculate_checksum(packetData):
                 print(f"Checksum válido para o pacote {packetData}")
             messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packetData] }
 
@@ -81,9 +79,7 @@ def handle_client(data, addr):
                         send_message(message_text, name, client, addr)
         else: 
             total_packets, name, packetData, checksum = content
-            packet = [message_type, total_packets, name, packetData]
-            packet = '|'.join(packet)
-            if checksum == calculate_checksum(packet):
+            if checksum == calculate_checksum(packetData):
                 print(f"Checksum válido para o pacote {packetData}")
             messages[message_type] = {"name": name, "packets": [packetData] }
 

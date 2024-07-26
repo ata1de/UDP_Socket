@@ -29,20 +29,15 @@ def send_file(filename):
     total_packets = (total_size // (BUFFER_SIZE - 50))
     total_packets = total_packets if total_packets > 0 else 1
 
-    # print("total de pacotes " + str(total_packets))
     randomId = random_lowercase_string()
     for i in range(total_packets):
         start = i * (BUFFER_SIZE - 50)
         end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{file_content[start:end].decode('utf-8')}"
-        checksum = calculate_checksum(packet)
-        packet_with_checksum = f"{packet}|{checksum}".encode("utf-8")
+        content = file_content[start:end].decode('utf-8')
+        checksum = calculate_checksum(content)
+        packet = f"{randomId}|{total_packets}|{name}|{content}|{checksum}".encode('utf-8')
+        client_socket.sendto(packet, (UDP_IP, UDP_PORT))
 
-        # print()
-        # print("pacote " + str(i))
-        # print(packet.decode('utf-8'))
-        # print(file_content[start:end])
-        client_socket.sendto(packet_with_checksum, (UDP_IP, UDP_PORT))
 
 def send_message(message):
     filename = f'message-{name}.txt'
