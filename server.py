@@ -6,17 +6,31 @@ from functions import *
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
 BUFFER_SIZE = 1024
+ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
+timers = {}
 
-def send_file(filename,name, client,addr):
+def start_timer(packet, addr):
+    global timers
+    timer = threading.Timer(ACK_TIMEOUT, retransmit_packet, [packet, addr])
+    timer.start()
+    timers[addr] = timer  # Armazena o timer no dicionário
+
+def retransmit_packet(packet, addr):
+    global timers
+    print("ACK não recebido, retransmitindo pacote...")
+    sock.sendto(packet, addr)
+    start_timer(packet, addr)  # Reinicia o timer
+
+def send_file(filename, name, client, addr):
+    global timers
     with open(filename, 'rb') as f:
         file_content = f.read()
 
     total_size = len(file_content)
-    total_packets = (total_size // (BUFFER_SIZE - 100))
-    total_packets = total_packets if total_packets > 0 else 1    
+    total_packets = (total_size // (BUFFER_SIZE - 100)) + 1
     randomId = random_lowercase_string()
         
     for i in range(total_packets):
@@ -24,8 +38,11 @@ def send_file(filename,name, client,addr):
         end = start + (BUFFER_SIZE - 100)
         content = file_content[start:end].decode('utf-8')
         checksum = calculate_checksum(content)
-        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{content}|{checksum}".encode('utf-8')
+        seq_num = i + 1
+        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{content}|{checksum}|{seq_num}".encode('utf-8')
         sock.sendto(packet, client)
+        start_timer(packet, client)  # Inicia o timer
+
 
 def send_ack(filename, client):
     with open(filename, 'rb') as f:
@@ -76,6 +93,12 @@ def handle_client(data, addr):
             for client in clients:
                 if client != addr:
                     sock.sendto(f"BYE|{message}".encode('utf-8'), client)
+
+        elif message_type == "ACK":
+            seq_num = int(content[0])
+            if addr in timers:
+                timers[addr].cancel()  # Cancela o timer de retransmissão
+                print(f"ACK recebido do cliente {addr} para o pacote {seq_num}")
 
         elif message_type in messages:
             total_packets, name, packetData, checksum, seq_num = content
