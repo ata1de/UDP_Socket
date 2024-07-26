@@ -1,9 +1,7 @@
 import socket
 import threading
 import os
-import random
-import string
-import hashlib
+from functions import *     
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -11,13 +9,6 @@ BUFFER_SIZE = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
-
-def calculate_checksum(data):
-    return hashlib.md5(data.encode('utf-8')).hexdigest()
-
-def random_lowercase_string():
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for _ in range(5))
 
 def send_file(filename,name, client,addr):
     with open(filename, 'rb') as f:
@@ -62,6 +53,17 @@ def handle_client(data, addr):
             for client in clients:
                 if client != addr:
                     sock.sendto(login_message.encode('utf-8'), client)
+
+        elif message_type == "BYE":
+            username = content[0]
+
+            clients.discard(addr)
+
+            message = (f'😪 Usuário {addr} com o username {username} saiu no chat.')
+            print(message)
+            for client in clients:
+                if client != addr:
+                    sock.sendto(f"BYE|{message}".encode('utf-8'), client)
 
         elif message_type in messages:
             total_packets, name, packetData, checksum = content

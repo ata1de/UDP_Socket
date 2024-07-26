@@ -2,9 +2,7 @@ import datetime
 import socket
 import threading
 import os
-import random
-import string
-import hashlib
+from functions import *     
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -13,12 +11,7 @@ BUFFER_SIZE = 1024
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(10)  # Define um timeout para evitar bloqueios
 
-def calculate_checksum(data):
-    return hashlib.md5(data.encode('utf-8')).hexdigest()
 
-def random_lowercase_string():
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for _ in range(5))
 
 def send_file(filename):
     with open(filename, 'rb') as f:
@@ -39,16 +32,20 @@ def send_file(filename):
         client_socket.sendto(packet, (UDP_IP, UDP_PORT))
 
 
-def send_message(message):
+def send_message(message, name):
     filename = f'message-{name}.txt'
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(message)
     send_file(filename)
     os.remove(filename)
 
-def send_login_message():
+def send_login_message(name):
     login_message = f"LOGIN|{name}".encode('utf-8')
     client_socket.sendto(login_message, (UDP_IP, UDP_PORT))
+
+def send_bye_message(name):
+    bye_message = f"BYE|{name}".encode('utf-8')
+    client_socket.sendto(bye_message, (UDP_IP, UDP_PORT))
 
 def receive_messages():
     while True:
@@ -57,6 +54,9 @@ def receive_messages():
             message_type, *content = data.decode('utf-8').split('|')
 
             if (message_type == "LOGIN"):
+                print(*content)
+
+            elif (message_type == "BYE"):
                 print(*content)
 
             elif (message_type in messages):
@@ -92,17 +92,29 @@ def receive_messages():
         except Exception as e:
             print(f"Erro ao receber mensagem: {e}")
 
-messages = {}
 
+
+messages = {}
 receive_thread = threading.Thread(target=receive_messages)
 receive_thread.daemon = True  # Faz com que a thread encerre junto com o programa principal
 receive_thread.start()
 
-print("🤠 Cliente iniciado. Primeiramente, qual o seu nome?")
-name = input()
-send_login_message()
-print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
+leaved =  False
+print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
+while not leaved: 
+    intro = input()
 
-while True:
-    message = input()
-    send_message(message)
+    if (intro.startswith("hi, meu nome eh ")):
+        name = getUserName(intro)
+        send_login_message(name)
+        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
+
+        while True:
+            message = input()
+            if (message.lower() == "bye"):
+                send_bye_message(name)
+                leaved = True
+                break
+            send_message(message, name)
+    else:
+        print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
