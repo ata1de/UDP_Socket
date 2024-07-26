@@ -20,7 +20,7 @@ def send_file(filename,name, client,addr):
     randomId = random_lowercase_string()
         
     for i in range(total_packets):
-        start = i * (BUFFER_SIZE -100)
+        start = i * (BUFFER_SIZE - 100)
         end = start + (BUFFER_SIZE - 100)
         content = file_content[start:end].decode('utf-8')
         checksum = calculate_checksum(content)
