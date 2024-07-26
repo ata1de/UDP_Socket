@@ -2,7 +2,9 @@ import datetime
 import socket
 import threading
 import os
-from functions import *     
+from functions import *  
+import time
+
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -11,25 +13,44 @@ BUFFER_SIZE = 1024
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(10)  # Define um timeout para evitar bloqueios
 
+ACK_TIMEOUT = 0.05  # Tempo limite para receber um ACK
+ack_received = False  # Variável global para indicar se o ACK foi recebido
+expected_seq_num = 0  # Número de sequência esperado
 
+def start_timer(packet, addr):
+    global ack_received
+    ack_received = False
+    timer = threading.Timer(ACK_TIMEOUT, retransmit_packet, [packet, addr])
+    timer.start()
+    return timer
+
+def retransmit_packet(packet, addr):
+    global ack_received
+    if not ack_received:
+        print("ACK não recebido, retransmitindo pacote...")
+        client_socket.sendto(packet, addr)
+        start_timer(packet, addr)
 
 def send_file(filename, name):
+    global ack_received, expected_seq_num
     with open(filename, 'rb') as f:
         file_content = f.read()
 
     total_size = len(file_content)
 
-    total_packets = (total_size // (BUFFER_SIZE - 50))
+    total_packets = (total_size // (BUFFER_SIZE - 100))
     total_packets = total_packets if total_packets > 0 else 1
 
     randomId = random_lowercase_string()
     for i in range(total_packets):
-        start = i * (BUFFER_SIZE - 50)
-        end = start + (BUFFER_SIZE - 50)
+        start = i * (BUFFER_SIZE - 100)
+        end = start + (BUFFER_SIZE - 100)
         content = file_content[start:end].decode('utf-8')
         checksum = calculate_checksum(content)
-        packet = f"{randomId}|{total_packets}|{name}|{content}|{checksum}".encode('utf-8')
+        expected_seq_num = i + 1 
+        packet = f"{randomId}|{total_packets}|{name}|{content}|{checksum}|{expected_seq_num}".encode('utf-8')
         client_socket.sendto(packet, (UDP_IP, UDP_PORT))
+        start_timer(packet, (UDP_IP, UDP_PORT)) 
 
 
 def send_message(message, name):
@@ -48,6 +69,7 @@ def send_bye_message(name):
     client_socket.sendto(bye_message, (UDP_IP, UDP_PORT))
 
 def receive_messages():
+    global ack_received, expected_seq_num
     while True:
         try:
             data, _ = client_socket.recvfrom(BUFFER_SIZE)
@@ -58,6 +80,13 @@ def receive_messages():
 
             elif (message_type == "BYE"):
                 print(*content)
+
+            elif (message_type == "ACK"):
+                seq_num = int(content[0])
+                if seq_num == expected_seq_num:
+                    ack_received = True 
+                    print("ACK recebido para o pacote", seq_num)
+       
 
             elif (message_type in messages):
                 total_packets, name, addrIp, addrPort, packet, checksum = content
@@ -71,7 +100,7 @@ def receive_messages():
                         gatheredPackets +=  messages[message_type]["packets"][i]
                     final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
                     print(final_message)   
-                    print()                 
+                    print() 
             else: 
                 total_packets, name, addrIp, addrPort, packet, checksum =  content
                 if checksum == calculate_checksum(packet):
@@ -101,11 +130,11 @@ print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇
 
 while True:
     message = input()
-    if (message.lower() == "bye"):
+    if message.lower() == "bye":
         send_bye_message(name)
-        leaved = True
         break
     send_message(message, name)
+
 
 # leaved =  False
 # print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
