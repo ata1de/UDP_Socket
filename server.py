@@ -1,8 +1,7 @@
 import socket
 import threading
 import os
-import random
-import string
+from functions import *     
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -11,30 +10,40 @@ BUFFER_SIZE = 1024
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 
-def random_lowercase_string():
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for _ in range(5))
-
 def send_file(filename,name, client,addr):
     with open(filename, 'rb') as f:
         file_content = f.read()
-    
+
     total_size = len(file_content)
-    total_packets = (total_size // (BUFFER_SIZE - 50))
+    total_packets = (total_size // (BUFFER_SIZE - 100))
     total_packets = total_packets if total_packets > 0 else 1    
     randomId = random_lowercase_string()
         
     for i in range(total_packets):
-        start = i * (BUFFER_SIZE -50)
-        end = start + (BUFFER_SIZE - 50)
-        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{file_content[start:end].decode('utf-8')}".encode("utf-8")
+        start = i * (BUFFER_SIZE - 100)
+        end = start + (BUFFER_SIZE - 100)
+        content = file_content[start:end].decode('utf-8')
+        checksum = calculate_checksum(content)
+        packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{content}|{checksum}".encode('utf-8')
         sock.sendto(packet, client)
 
-def send_message(message, name, client, addr):
+def send_ack(filename, client):
+    with open(filename, 'rb') as f:
+        file_content = f.read()
+    content = file_content.decode('utf-8') 
+
+    contentWHeader = f"ACK|{content}".encode('utf-8')
+    sock.sendto(contentWHeader, client)
+
+
+def send_message(message, name, client, addr, isAck = False):
     filename = f'message-{name}.txt'
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(message)
-    send_file(filename, name, client, addr)
+    if (isAck):
+        send_ack(filename, client)
+    else:
+        send_file(filename, name, client, addr)
     os.remove(filename)
 
 def handle_client(data, addr):
@@ -57,31 +66,52 @@ def handle_client(data, addr):
                 if client != addr:
                     sock.sendto(login_message.encode('utf-8'), client)
 
+        elif message_type == "BYE":
+            username = content[0]
+
+            clients.discard(addr)
+
+            message = (f'😪 Usuário {addr} com o username {username} saiu no chat.')
+            print(message)
+            for client in clients:
+                if client != addr:
+                    sock.sendto(f"BYE|{message}".encode('utf-8'), client)
+
         elif message_type in messages:
-            total_packets, name, packetData = content
-            messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packetData] }
+            total_packets, name, packetData, checksum, seq_num = content
+            if checksum == calculate_checksum(packetData):
+                print(f"Checksum válido para o pacote {packetData}")
+                messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packetData] }
+                
+                send_message(seq_num, name, addr, addr, True)
 
-            if (len(messages[message_type]["packets"]) == int(total_packets)):
-                file_content = bytearray()
-                for i in range(int(total_packets)):
-                    file_content.extend(messages[message_type]["packets"][i].encode("utf-8"))
-                message_text = file_content.decode('utf-8')
-                for client in clients:
-                    if client != addr:
-                        send_message(message_text, name, client, addr)
+                if (len(messages[message_type]["packets"]) == int(total_packets)):
+                    file_content = bytearray()
+                    for i in range(int(total_packets)):
+                        file_content.extend(messages[message_type]["packets"][i].encode("utf-8"))
+                    message_text = file_content.decode('utf-8')
+
+                    for client in clients:
+                        if client != addr:
+                            send_message(message_text, name, client, addr)
         else: 
-            total_packets, name, packetData = content
-            messages[message_type] = {"name": name, "packets": [packetData] }
+            total_packets, name, packetData, checksum, seq_num = content
+            if checksum == calculate_checksum(packetData):
+                print(f"Checksum válido para o pacote {packetData}")
+                messages[message_type] = {"name": name, "packets": [packetData] }
 
-            if (total_packets == '1'):
-                file_content = bytearray()
-                for i in range(int(total_packets)):
-                    file_content.extend(messages[message_type]['packets'][i].encode("utf-8"))
-                message_text = file_content.decode('utf-8')
+                send_message(seq_num, name, addr, addr, True)
 
-                for client in clients:
-                    if client != addr:
-                        send_message(message_text, name, client, addr)
+                if (total_packets == '1'):
+                    file_content = bytearray()
+                    for i in range(int(total_packets)):
+                        file_content.extend(messages[message_type]['packets'][i].encode("utf-8"))
+                    message_text = file_content.decode('utf-8')
+
+
+                    for client in clients:
+                        if client != addr:
+                            send_message(message_text, name, client, addr)
 
     except Exception as e:
         print(f"Erro ao lidar com o cliente {addr}: {e}")
