@@ -2,6 +2,7 @@ import socket
 import threading
 import os
 from functions import *
+import random
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -12,7 +13,6 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 timers = {}
 
-file_lock = threading.Lock()
 
 def start_timer(packet, addr, seq_num):
     global timers
@@ -28,9 +28,8 @@ def retransmit_packet(packet, addr, seq_num):
     start_timer(packet, addr, seq_num)  # Reinicia o timer
 
 def send_file(filename, name, client, addr):
-    with file_lock:
-        with open(filename, 'rb') as f:
-            file_content = f.read()
+    with open(filename, 'rb') as f:
+        file_content = f.read()
 
     total_size = len(file_content)
     total_packets = (total_size // (BUFFER_SIZE - 100)) + 1
@@ -51,15 +50,13 @@ def send_ack(seq_num, client):
     sock.sendto(ack_message, client)
 
 def send_message(message, name, client, addr, isAck=False):
-    filename = f'message-{name}.txt'
-    with file_lock:
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(message)
+    filename = f'message-s-{name}.txt'
     if isAck:
         send_ack(message, client)
     else:
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(message)
         send_file(filename, name, client, addr)
-    with file_lock:
         os.remove(filename)
 
 def handle_client(data, addr):
@@ -105,12 +102,13 @@ def handle_client(data, addr):
                 messages[message_type]["packets"][seq_num] = packetData
                 
                 send_message(seq_num, name, addr, addr, True)
-
                 if len(messages[message_type]["packets"]) == int(total_packets):
                     file_content = bytearray()
                     for i in range(1, int(total_packets) + 1):
                         file_content.extend(messages[message_type]["packets"][i].encode("utf-8"))
+
                     message_text = file_content.decode('utf-8')
+                    # print(f"Mensagem recebida: {message_text}")
 
                     for client in clients:
                         if client != addr:
@@ -131,7 +129,7 @@ def handle_client(data, addr):
                             send_message(message_text, name, client, addr)
 
     except Exception as e:
-        print(f"Erro ao lidar com o cliente {addr}: {e}")
+        print(f"Erro ao lidar com o cliente {addr}: {e}, {type(e).__name__}, {e.args}")
 
 def server():
     print("Servidor iniciado! 📦")
@@ -140,7 +138,7 @@ def server():
             data, addr = sock.recvfrom(BUFFER_SIZE)
             threading.Thread(target=handle_client, args=(data, addr)).start()
         except Exception as e:
-            print(f"Erro no servidor: {e}")
+            print(f"Erro no servidor: {e}, {type(e).__name__}, {e.args}")
 
 clients = set()
 messages = {}

@@ -31,12 +31,8 @@ def retransmit_packet(packet, addr):
         client_socket.sendto(packet, addr)
         start_timer(packet, addr)
 
-def send_ack(filename, client):
-    with open(filename, 'rb') as f:
-        file_content = f.read()
-    content = file_content.decode('utf-8') 
-
-    contentWHeader = f"ACK|{content}".encode('utf-8')
+def send_ack(seq_num, client):
+    contentWHeader = f"ACK|{seq_num}".encode('utf-8')
     client_socket.sendto(contentWHeader, client)
 
 def send_file(filename, name):
@@ -64,14 +60,14 @@ def send_file(filename, name):
 
 
 def send_message(message, name, isAck = False):
-    filename = f'message-{name}.txt'
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(message)
     if (isAck):
-        send_ack(filename, (UDP_IP, UDP_PORT))
+        send_ack(message, (UDP_IP, UDP_PORT))
     else:
+        filename = f'message-c-{name}.txt'
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(message)
         send_file(filename, name)
-    os.remove(filename)
+        os.remove(filename)
 
 def send_login_message(name):
     login_message = f"LOGIN|{name}".encode('utf-8')
@@ -109,26 +105,26 @@ def receive_messages():
                     print(f"Checksum válido para o pacote")
                     send_message(seq_num, name, True)
                     # TUDO SÓ SERÁ RODADO SE O CHECKSUM FOR VÁLIDO?
-                messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
-                if (int(total_packets) == len(messages[message_type]["packets"])):
-                    date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-                    gatheredPackets = ""
-                    for i in range(int(total_packets)):
-                        gatheredPackets +=  messages[message_type]["packets"][i]
-                    final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
-                    print(final_message)   
-                    print() 
+                    messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
+                    if (int(total_packets) == len(messages[message_type]["packets"])):
+                        date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+                        gatheredPackets = ""
+                        for i in range(int(total_packets)):
+                            gatheredPackets +=  messages[message_type]["packets"][i]
+                        final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
+                        print(final_message)   
+                        print() 
             else: 
                 total_packets, name, addrIp, addrPort, packet, checksum, seq_num =  content
                 if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
                     send_message(seq_num, name, True)
-                messages[message_type] = {"name": name, "packets": [packet] }
-                if (total_packets == '1'):
-                    date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-                    final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"
-                    print(final_message)
-                    print()
+                    messages[message_type] = {"name": name, "packets": [packet] }
+                    if (total_packets == '1'):
+                        date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+                        final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"
+                        print(final_message)
+                        print()
 
         except socket.timeout:
             continue
