@@ -103,9 +103,11 @@ def handle_client(data, addr):
                 
                 send_message(seq_num, name, addr, addr, True)
                 if len(messages[message_type]["packets"]) == int(total_packets):
+                    print(messages[message_type]["packets"])
                     file_content = bytearray()
                     for i in range(1, int(total_packets) + 1):
-                        file_content.extend(messages[message_type]["packets"][i].encode("utf-8"))
+                        print('oi')
+                        file_content.extend(messages[message_type]["packets"][f"{i}"].encode("utf-8"))
 
                     message_text = file_content.decode('utf-8')
                     # print(f"Mensagem recebida: {message_text}")
