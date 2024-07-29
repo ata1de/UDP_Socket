@@ -1,10 +1,10 @@
 import datetime
+import os
 import socket
 import threading
-import os
-from functions import *  
 import time
 
+from functions import *
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -16,6 +16,7 @@ client_socket.settimeout(10)  # Define um timeout para evitar bloqueios
 ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
 ack_received = False  # Variável global para indicar se o ACK foi recebido
 seq_numbers = []  # Lista de números de sequência esperados
+packets_dict = {}  # Dicionário para mapear seq_number aos pacotes
 
 def start_timer(packet, addr):
     global ack_received
@@ -41,7 +42,6 @@ def send_file(filename, name):
         file_content = f.read()
 
     total_size = len(file_content)
-
     total_packets = (total_size // (BUFFER_SIZE - 100))
     total_packets = total_packets if total_packets > 0 else 1
 
@@ -54,13 +54,13 @@ def send_file(filename, name):
         checksum = calculate_checksum(content)
         expected_seq_num = i + 1 
         seq_numbers.append(expected_seq_num)
+        packets_dict[expected_seq_num] = content
         packet = f"{randomId}|{total_packets}|{name}|{content}|{checksum}|{expected_seq_num}".encode('utf-8')
         client_socket.sendto(packet, (UDP_IP, UDP_PORT))
         start_timer(packet, (UDP_IP, UDP_PORT)) 
 
-
-def send_message(message, name, isAck = False):
-    if (isAck):
+def send_message(message, name, isAck=False):
+    if isAck:
         send_ack(message, (UDP_IP, UDP_PORT))
     else:
         filename = f'message-c-{name}.txt'
@@ -84,43 +84,49 @@ def receive_messages():
             data, _ = client_socket.recvfrom(BUFFER_SIZE)
             message_type, *content = data.decode('utf-8').split('|')
 
-            if (message_type == "LOGIN"):
+            if message_type == "LOGIN":
                 print(*content)
 
-            elif (message_type == "BYE"):
+            elif message_type == "BYE":
                 print(*content)
 
-            elif (message_type == "ACK"):
+            elif message_type == "ACK":
                 seq_num = int(content[0])
                 expected_seq_num = seq_numbers[0]
                 if seq_num == expected_seq_num:
                     seq_numbers.pop(0)
+                    packets_dict.pop(seq_num)
                     ack_received = True 
                     print("ACK recebido para o pacote", seq_num)
-       
 
-            elif (message_type in messages):
+            elif message_type == "CHKERR":
+                seq_num = int(content[0])
+                if seq_num in packets_dict:
+                    packet = packets_dict[seq_num]
+                    print(f"Checksum inválido para o pacote {seq_num}, reenviando...")
+                    retransmit_packet(packet, (UDP_IP, UDP_PORT))
+
+            elif message_type in messages:
                 total_packets, name, addrIp, addrPort, packet, checksum, seq_num = content
                 if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
                     send_message(seq_num, name, True)
-                    # TUDO SÓ SERÁ RODADO SE O CHECKSUM FOR VÁLIDO?
-                    messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
-                    if (int(total_packets) == len(messages[message_type]["packets"])):
+                    messages[message_type] = {"name": name, "packets": [*messages[message_type]["packets"], packet]}
+                    if int(total_packets) == len(messages[message_type]["packets"]):
                         date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
                         gatheredPackets = ""
                         for i in range(int(total_packets)):
-                            gatheredPackets +=  messages[message_type]["packets"][i]
+                            gatheredPackets += messages[message_type]["packets"][i]
                         final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
-                        print(final_message)   
+                        print(final_message)
                         print() 
-            else: 
-                total_packets, name, addrIp, addrPort, packet, checksum, seq_num =  content
+            else:
+                total_packets, name, addrIp, addrPort, packet, checksum, seq_num = content
                 if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
                     send_message(seq_num, name, True)
-                    messages[message_type] = {"name": name, "packets": [packet] }
-                    if (total_packets == '1'):
+                    messages[message_type] = {"name": name, "packets": [packet]}
+                    if total_packets == '1':
                         date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
                         final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"
                         print(final_message)
@@ -131,14 +137,12 @@ def receive_messages():
         except Exception as e:
             print(f"Erro ao receber mensagem: {e}")
 
-
-
 messages = {}
 receive_thread = threading.Thread(target=receive_messages)
 receive_thread.daemon = True  # Faz com que a thread encerre junto com o programa principal
 receive_thread.start()
 
-name=  input()
+name = input()
 send_login_message(name)
 print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
 
@@ -148,25 +152,3 @@ while True:
         send_bye_message(name)
         break
     send_message(message, name)
-
-
-# leaved =  False
-# print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
-
-# while not leaved: 
-#     intro = input()
-
-#     if (intro.startswith("hi, meu nome eh ")):
-#         name = getUserName(intro)
-#         send_login_message(name)
-#         print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
-
-#         while True:
-#             message = input()
-#             if (message.lower() == "bye"):
-#                 send_bye_message(name)
-#                 leaved = True
-#                 break
-#             send_message(message, name)
-#     else:
-#         print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
