@@ -31,6 +31,10 @@ def retransmit_packet(packet, addr):
         client_socket.sendto(packet, addr)
         start_timer(packet, addr)
 
+def send_ack(seq_num, client):
+    contentWHeader = f"ACK|{seq_num}".encode('utf-8')
+    client_socket.sendto(contentWHeader, client)
+
 def send_file(filename, name):
     global ack_received, seq_numbers
     with open(filename, 'rb') as f:
@@ -55,12 +59,15 @@ def send_file(filename, name):
         start_timer(packet, (UDP_IP, UDP_PORT)) 
 
 
-def send_message(message, name):
-    filename = f'message-{name}.txt'
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(message)
-    send_file(filename, name)
-    os.remove(filename)
+def send_message(message, name, isAck = False):
+    if (isAck):
+        send_ack(message, (UDP_IP, UDP_PORT))
+    else:
+        filename = f'message-c-{name}.txt'
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(message)
+        send_file(filename, name)
+        os.remove(filename)
 
 def send_login_message(name):
     login_message = f"LOGIN|{name}".encode('utf-8')
@@ -93,28 +100,31 @@ def receive_messages():
        
 
             elif (message_type in messages):
-                total_packets, name, addrIp, addrPort, packet, checksum = content
+                total_packets, name, addrIp, addrPort, packet, checksum, seq_num = content
                 if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
-                messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
-                if (int(total_packets) == len(messages[message_type]["packets"])):
-                    date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-                    gatheredPackets = ""
-                    for i in range(int(total_packets)):
-                        gatheredPackets +=  messages[message_type]["packets"][i]
-                    final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
-                    print(final_message)   
-                    print() 
+                    send_message(seq_num, name, True)
+                    # TUDO SÓ SERÁ RODADO SE O CHECKSUM FOR VÁLIDO?
+                    messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
+                    if (int(total_packets) == len(messages[message_type]["packets"])):
+                        date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+                        gatheredPackets = ""
+                        for i in range(int(total_packets)):
+                            gatheredPackets +=  messages[message_type]["packets"][i]
+                        final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
+                        print(final_message)   
+                        print() 
             else: 
-                total_packets, name, addrIp, addrPort, packet, checksum =  content
+                total_packets, name, addrIp, addrPort, packet, checksum, seq_num =  content
                 if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
-                messages[message_type] = {"name": name, "packets": [packet] }
-                if (total_packets == '1'):
-                    date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-                    final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"
-                    print(final_message)
-                    print()
+                    send_message(seq_num, name, True)
+                    messages[message_type] = {"name": name, "packets": [packet] }
+                    if (total_packets == '1'):
+                        date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+                        final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"
+                        print(final_message)
+                        print()
 
         except socket.timeout:
             continue
