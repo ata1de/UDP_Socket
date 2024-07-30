@@ -2,6 +2,7 @@ import datetime
 import os
 import socket
 import threading
+from math import ceil
 
 from functions import *
 
@@ -41,9 +42,11 @@ def send_file(filename, name):
         file_content = f.read()
 
     total_size = len(file_content)
+    print(f'Tamanho do arquivo: {total_size}')
 
-    total_packets = (total_size // (BUFFER_SIZE - 100))
+    total_packets = ceil(total_size / (BUFFER_SIZE - 100))
     total_packets = total_packets if total_packets > 0 else 1
+    print(total_packets)
 
     randomId = random_lowercase_string()
     expected_seq_num = 0 
@@ -51,6 +54,7 @@ def send_file(filename, name):
         start = i * (BUFFER_SIZE - 100)
         end = start + (BUFFER_SIZE - 100)
         content = file_content[start:end].decode('utf-8')
+        print(f"Conteudo: {content}")
         checksum = calculate_checksum(content)
         expected_seq_num = i + 1 
         seq_numbers.append(expected_seq_num)
@@ -109,7 +113,7 @@ def receive_messages():
        
             elif message_type in messages:
                 total_packets, name, addrIp, addrPort, packet, checksum, seq_num = content
-                if checksum != calculate_checksum(packet):
+                if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
                     send_message(seq_num, name, True)
                     messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
@@ -126,7 +130,7 @@ def receive_messages():
                     client_socket.sendto(f"CORRUPT|{seq_num}".encode('utf-8'), (UDP_IP, UDP_PORT))
             else: 
                 total_packets, name, addrIp, addrPort, packet, checksum, seq_num =  content
-                if checksum != calculate_checksum(packet):
+                if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote")
                     send_message(seq_num, name, True)
                     messages[message_type] = {"name": name, "packets": [packet] }
