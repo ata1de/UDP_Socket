@@ -1,8 +1,8 @@
+import os
 import socket
 import threading
-import os
+
 from functions import *
-import random
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
@@ -12,6 +12,7 @@ ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 timers = {}
+packets_dict = {}  # Dicionário para mapear seq_number aos pacotes
 
 
 def start_timer(packet, addr, seq_num):
@@ -42,6 +43,7 @@ def send_file(filename, name, client, addr):
         checksum = calculate_checksum(content)
         seq_num = i + 1
         packet = f"{randomId}|{total_packets}|{name}|{addr[0]}|{addr[1]}|{content}|{checksum}|{seq_num}".encode('utf-8')
+        packets_dict[seq_num] = packet
         sock.sendto(packet, client)
         start_timer(packet, client, seq_num)  # Inicia o timer para o pacote específico
 
@@ -92,8 +94,16 @@ def handle_client(data, addr):
             timer_key = (addr, seq_num)
             if timer_key in timers:
                 timers[timer_key].cancel()  # Cancela o timer de retransmissão
+                packets_dict.pop(seq_num)
                 print(f"ACK recebido do cliente {addr} para o pacote {seq_num}")
                 del timers[timer_key]  # Remove o timer do dicionário
+        
+        elif message_type == "CORRUPT":
+                seq_num = int(content[0])
+                if seq_num in packets_dict:
+                    packet = packets_dict[seq_num]
+                    print(f"Checksum inválido para o pacote {seq_num}, reenviando...")
+                    retransmit_packet(packet, (UDP_IP, UDP_PORT), seq_num)
 
         elif message_type in messages:
             total_packets, name, packetData, checksum, seq_num = content
@@ -106,15 +116,16 @@ def handle_client(data, addr):
                     print(messages[message_type]["packets"])
                     file_content = bytearray()
                     for i in range(1, int(total_packets) + 1):
-                        print('oi')
-                        file_content.extend(messages[message_type]["packets"][f"{i}"].encode("utf-8"))
+                        file_content.extend(messages[message_type]["packets"][str(i)].encode("utf-8"))
 
                     message_text = file_content.decode('utf-8')
-                    # print(f"Mensagem recebida: {message_text}")
 
                     for client in clients:
                         if client != addr:
                             send_message(message_text, name, client, addr)
+            else:
+                print(f"Checksum inválido para o pacote {packetData}")
+                sock.sendto(f"CORRUPT|{seq_num}".encode('utf-8'), addr)
         else: 
             total_packets, name, packetData, checksum, seq_num = content
             if checksum == calculate_checksum(packetData):
@@ -129,6 +140,9 @@ def handle_client(data, addr):
                     for client in clients:
                         if client != addr:
                             send_message(message_text, name, client, addr)
+            else:
+                print(f"Checksum inválido para o pacote {packetData}")
+                sock.sendto(f"CORRUPT|{seq_num}".encode('utf-8'), addr)
 
     except Exception as e:
         print(f"Erro ao lidar com o cliente {addr}: {e}, {type(e).__name__}, {e.args}")
