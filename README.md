@@ -8,3 +8,6 @@ Antônio Robério (arbof@cin.ufpe.br)
 
 Daniel Dias (dmdf@cin.ufpe.br)
 
+Eric Bezerra (eblb@cin.ufpe.br)
+
+Mateus Ataide (mhal@cin.ufpe.br)
