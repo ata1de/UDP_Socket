@@ -10,6 +10,7 @@ UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
 BUFFER_SIZE = 1024
 ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
+aux = False
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(10)  # Define um timeout para evitar bloqueios
@@ -31,7 +32,8 @@ def retransmit_packet(packet, addr, expected_seq_num):
         start_timer(packet, addr, expected_seq_num)
 
 def send_ack(seq_num, client):
-    contentWHeader = f"ACK|{seq_num}".encode('utf-8')
+    checksum = calculate_checksum(str(seq_num))
+    contentWHeader = f"ACK|{seq_num}|{checksum}".encode('utf-8')
     client_socket.sendto(contentWHeader, client)
 
 def send_file(filename, name):
@@ -80,6 +82,8 @@ def receive_messages():
         try:
             data, _ = client_socket.recvfrom(BUFFER_SIZE)
             message_type, *content = data.decode('utf-8').split('|')
+            print(messages)
+            print(packets_dict)
 
             if message_type == "LOGIN":
                 print(*content)
@@ -89,16 +93,20 @@ def receive_messages():
 
             elif message_type == "ACK":
                 seq_num = int(content[0])
-                # nossa implementação não considera que ACKs podem ser corrompidos -> vai entrar no else mesmo que o ACK seja corrompido 
+                checksum = content[1]
 
-                if (packets_dict[seq_num]["ack_count"] > 1): 
-                    retransmit_packet(packets_dict[seq_num + 1]["packet"], (UDP_IP, UDP_PORT), seq_num + 1)       
-                    print("ACK duplicado recebido, retransmitindo pacote...")         
+                if(checksum == calculate_checksum(str(seq_num))):
+                    if (packets_dict[seq_num]["ack_count"] > 1): 
+                        retransmit_packet(packets_dict[seq_num + 1]["packet"], (UDP_IP, UDP_PORT), seq_num + 1)       
+                        print("ACK duplicado recebido, retransmitindo pacote...")         
+                    else: 
+                        packets_dict[seq_num]["ack_count"] = 1
+                        print("ACK recebido para o pacote", seq_num)
+                
+                    packets_dict[seq_num]["timer"].cancel()
                 else: 
-                    packets_dict[seq_num]["ack_count"] = 1
-                    print("ACK recebido para o pacote", seq_num)
-            
-                packets_dict[seq_num]["timer"].cancel()
+                    print(f"ACK {seq_num} chegou corrompido.")
+
        
             elif message_type in messages:
                 total_packets, name, addrIp, addrPort, packet, checksum, seq_num = content
@@ -110,7 +118,9 @@ def receive_messages():
                     if checksum == calculate_checksum(packet):
                         print(f"Checksum válido para o pacote {seq_num}")
                         send_message(seq_num, name, True)
-                        messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
+                        # messages[message_type] = { "name": name, "packets": [*messages[message_type]["packets"], packet] }
+                        messages[message_type]["packets"][seq_num] = packet
+
                         if (int(total_packets) == len(messages[message_type]["packets"])):
                             date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
                             gatheredPackets = ""
@@ -128,7 +138,7 @@ def receive_messages():
                 if checksum == calculate_checksum(packet):
                     print(f"Checksum válido para o pacote {seq_num}")
                     send_message(seq_num, name, True)
-                    messages[message_type] = {"name": name, "packets": [packet] }
+                    messages[message_type] = {"name": name, "packets": {seq_num: packet} }
                     if (total_packets == '1'):
                         date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
                         final_message = f"{addrIp}:{addrPort}/~{name}: {packet} {date_now}"

@@ -50,7 +50,8 @@ def send_file(filename, name, client, addr):
 
 
 def send_ack(seq_num, client):
-    ack_message = f"ACK|{seq_num}".encode('utf-8')
+    checksum = calculate_checksum(str(seq_num))
+    ack_message = f"ACK|{seq_num}|{checksum}".encode('utf-8')
     sock.sendto(ack_message, client)
 
 
@@ -97,14 +98,19 @@ def handle_client(data, addr):
 
         elif message_type == "ACK":
             seq_num = int(content[0])
-            if (packets_dict[(addr, seq_num)]["ack_count"] > 1): 
-                retransmit_packet(packets_dict[(addr, seq_num + 1) + 1]["packet"], addr,  seq_num + 1)    
-                print(f"ACK duplicado recebido, retransmitindo pacote {seq_num} do cliente {addr}...")         
-            else: 
-                packets_dict[(addr, seq_num)]["ack_count"] = 1
-                print(f"ACK recebido para o pacote {seq_num} do cliente {addr}")
-        
-            packets_dict[(addr, seq_num)]["timer"].cancel()
+            checksum = content[1]
+
+            if(checksum == calculate_checksum(str(seq_num))):
+                if (packets_dict[(addr, seq_num)]["ack_count"] > 1): 
+                    retransmit_packet(packets_dict[(addr, seq_num + 1) + 1]["packet"], addr,  seq_num + 1)    
+                    print(f"ACK duplicado recebido, retransmitindo pacote {seq_num} do cliente {addr}...")         
+                else: 
+                    packets_dict[(addr, seq_num)]["ack_count"] = 1
+                    print(f"ACK recebido para o pacote {seq_num} do cliente {addr}")
+            
+                packets_dict[(addr, seq_num)]["timer"].cancel()
+            else:
+                print(f"ACK {seq_num} do cliente {addr} chegou corrompido.")
 
         elif message_type in messages:
             total_packets, name, packetData, checksum, seq_num = content
