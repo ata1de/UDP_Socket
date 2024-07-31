@@ -16,7 +16,7 @@ ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(10)  # Define um timeout para evitar bloqueios no recvfrom
 
-packets_dict = {} 
+packets_dict = {} #{seq_num: { "packet": pacote, "ack_count": contagem_de_acks, "timer": temporizador } }
 # Dicionário para armazenar informações sobre os pacotes enviados
 # Estrutura: { numero_sequencia: { "packet": pacote, "ack_count": contagem_de_acks, "timer": temporizador } }
 
@@ -188,7 +188,7 @@ while not leaved:
         # Processa o comando de login do usuário
         name = getUserName(intro)
         send_login_message(name)
-        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo)
+        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇")
         while True:
             message = input()
             if (message.lower() == "bye"):
