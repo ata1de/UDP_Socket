@@ -15,7 +15,8 @@ Outro objetivo fundamental do trabalho é adicionar confiabilidade à comunicaç
 # Bibliotecas
 A biblioteca socket foi amplamente empregada ao longo de todo o projeto, desempenhando um papel fundamental na criação e na manutenção das conexões entre o cliente e o servidor.
 
-### Integrantes
+
+# Integrantes
 Antônio Robério (arbof@cin.ufpe.br)
 
 Daniel Dias (dmdf@cin.ufpe.br)
