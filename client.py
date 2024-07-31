@@ -162,24 +162,30 @@ while True:
         break
     send_message(message, name)
 
+leaved =  False
 
-# leaved =  False
-# print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
+print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
 
-# while not leaved: 
-#     intro = input()
+def getUserName(mensagem):
+    inicio_nome = mensagem.find("meu nome eh ") + len("meu nome eh ")
+    nome = mensagem[inicio_nome:].split()[0]
+    return nome
 
-#     if (intro.startswith("hi, meu nome eh ")):
-#         name = getUserName(intro)
-#         send_login_message(name)
-#         print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
+while not leaved: 
+    intro = input()
 
-#         while True:
-#             message = input()
-#             if (message.lower() == "bye"):
-#                 send_bye_message(name)
-#                 leaved = True
-#                 break
-#             send_message(message, name)
-#     else:
-#         print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
+    if (intro.startswith("hi, meu nome eh ")):
+        name = getUserName(intro)
+        send_login_message(name)
+        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
+
+        while True:
+            message = input()
+            if (message.lower() == "bye"):
+                send_bye_message(name)
+                leaved = True
+                break
+            send_message(message, name)
+    else:
+        print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
+        
