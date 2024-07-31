@@ -15,7 +15,7 @@ Outro objetivo fundamental do trabalho é adicionar confiabilidade à comunicaç
 
 # Primeira Intrega
 Este projeto foi desenvolvido como parte da disciplina de Redes e consiste na implementação de um sistema de comunicação via UDP utilizando a biblioteca Socket em Python. A aplicação simula um chat de sala única, onde os usuários podem enviar e receber arquivos de texto (.txt), que são exibidos diretamente no terminal de cada cliente conectado.
-###Funcionalidades Implementadas
+### Funcionalidades Implementadas
 Conexão de Múltiplos Clientes:
 A aplicação suporta múltiplos clientes conectados ao mesmo tempo, sem interrupção do funcionamento do chat. Cada cliente pode enviar e receber mensagens de todos os outros participantes na sala.
 Troca de Arquivos de Texto (.txt):
