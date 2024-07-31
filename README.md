@@ -27,7 +27,7 @@ Notificações de Conexão e Desconexão:
 Quando um novo usuário se conecta à sala, todos os usuários já conectados recebem uma mensagem notificando a nova presença. Da mesma forma, quando um usuário sai da sala, os outros usuários são notificados.
 Comandos de Controle:
 
-Os usuários para se conectarem e se desligarem à sala utilizando o comando:
+Os usuários para se conectarem e se desligarem à sala utilizam o comando:
 Para se conectar: "hi meu nome eh". Para se desligar "bye".
 
 # Segunda Entrega
