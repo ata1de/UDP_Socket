@@ -151,35 +151,23 @@ receive_thread = threading.Thread(target=receive_messages)
 receive_thread.daemon = True  # Faz com que a thread encerre junto com o programa principal
 receive_thread.start()
 
-name=  input()
-send_login_message(name)
-print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
+leaved =  False
+print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
 
-while True:
-    message = input()
-    if message.lower() == "bye":
-        send_bye_message(name)
-        break
-    send_message(message, name)
+while not leaved: 
+    intro = input()
 
+    if (intro.startswith("hi, meu nome eh ")):
+        name = getUserName(intro)
+        send_login_message(name)
+        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
 
-# leaved =  False
-# print("🤠 Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
-
-# while not leaved: 
-#     intro = input()
-
-#     if (intro.startswith("hi, meu nome eh ")):
-#         name = getUserName(intro)
-#         send_login_message(name)
-#         print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo ⬇️:")
-
-#         while True:
-#             message = input()
-#             if (message.lower() == "bye"):
-#                 send_bye_message(name)
-#                 leaved = True
-#                 break
-#             send_message(message, name)
-#     else:
-#         print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
+        while True:
+            message = input()
+            if (message.lower() == "bye"):
+                send_bye_message(name)
+                leaved = True
+                break
+            send_message(message, name)
+    else:
+        print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
