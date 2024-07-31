@@ -13,6 +13,8 @@ ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 packets_dict = {}  
+
+aux = False
 # (addr, seq_number) { packet, ack_count, timer  } 
 
 # QUANDO HÁ UM PACOTE CORROMPIDO, EM VEZ ME MANDARMOS A ACK DO ULTIMO PACOTE RECEBIDO COM SUCESSO (como iriamos saber qual é esse pacote tbm) ESTAMOS MANDANDO O ACK DO ULTIMO PACOTE (seq_num - 1), QUE PODE TER SIDO RECEBIDO COM SUCESSO OU NÃO
@@ -21,7 +23,6 @@ def start_timer(packet, addr, seq_num):
     timer = threading.Timer(ACK_TIMEOUT, retransmit_packet, [packet, addr, seq_num])
     timer.start()
     packets_dict[(addr, seq_num)]["timer"] = timer 
-
 
 def retransmit_packet(packet, addr, seq_num):
     print(f"ACK não recebido para o pacote {seq_num}, retransmitindo pacote do cliente {addr}...")
@@ -71,7 +72,7 @@ def handle_client(data, addr):
         if addr not in clients:
             clients.add(addr)
 
-        print("MESSAGES: " , messages)
+        # print("MESSAGES: " , messages)
 
         try:
             message_type, *content = data.decode('utf-8').split('|')
@@ -97,13 +98,15 @@ def handle_client(data, addr):
                     sock.sendto(f"BYE|{message}".encode('utf-8'), client)
 
         elif message_type == "ACK":
+            global aux
             seq_num = int(content[0])
             checksum = content[1]
 
-            if(checksum == calculate_checksum(str(seq_num))):
-                if (packets_dict[(addr, seq_num)]["ack_count"] > 1): 
+            if(checksum == calculate_checksum(str(seq_num) if aux else "")):
+                if (packets_dict[(addr, seq_num)]["ack_count"] >= 1): 
                     retransmit_packet(packets_dict[(addr, seq_num + 1) + 1]["packet"], addr,  seq_num + 1)    
-                    print(f"ACK duplicado recebido, retransmitindo pacote {seq_num} do cliente {addr}...")         
+                    print(f"ACK duplicado recebido, retransmitindo pacote {seq_num} do cliente {addr}...")     
+                    packets_dict[(addr, seq_num)]["ack_count"] += 1
                 else: 
                     packets_dict[(addr, seq_num)]["ack_count"] = 1
                     print(f"ACK recebido para o pacote {seq_num} do cliente {addr}")
@@ -111,6 +114,8 @@ def handle_client(data, addr):
                 packets_dict[(addr, seq_num)]["timer"].cancel()
             else:
                 print(f"ACK {seq_num} do cliente {addr} chegou corrompido.")
+
+            aux = True
 
         elif message_type in messages:
             total_packets, name, packetData, checksum, seq_num = content

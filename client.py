@@ -10,7 +10,6 @@ UDP_IP = "127.0.0.1"
 UDP_PORT = 5005
 BUFFER_SIZE = 1024
 ACK_TIMEOUT = 0.1  # Tempo limite para receber um ACK
-aux = False
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(10)  # Define um timeout para evitar bloqueios
@@ -82,8 +81,6 @@ def receive_messages():
         try:
             data, _ = client_socket.recvfrom(BUFFER_SIZE)
             message_type, *content = data.decode('utf-8').split('|')
-            print(messages)
-            print(packets_dict)
 
             if message_type == "LOGIN":
                 print(*content)
@@ -96,9 +93,10 @@ def receive_messages():
                 checksum = content[1]
 
                 if(checksum == calculate_checksum(str(seq_num))):
-                    if (packets_dict[seq_num]["ack_count"] > 1): 
+                    if (packets_dict[seq_num]["ack_count"] >= 1): 
                         retransmit_packet(packets_dict[seq_num + 1]["packet"], (UDP_IP, UDP_PORT), seq_num + 1)       
-                        print("ACK duplicado recebido, retransmitindo pacote...")         
+                        print("ACK duplicado recebido, retransmitindo pacote...")   
+                        packets_dict[seq_num]["ack_count"] += 1
                     else: 
                         packets_dict[seq_num]["ack_count"] = 1
                         print("ACK recebido para o pacote", seq_num)
@@ -111,7 +109,7 @@ def receive_messages():
             elif message_type in messages:
                 total_packets, name, addrIp, addrPort, packet, checksum, seq_num = content
 
-                if seq_num in packets_dict: 
+                if seq_num in messages[message_type]["packets"]: 
                     print(f"Pacote já foi recebido pra esse seq num {seq_num}, reenviando o ACK...")
                     send_message(seq_num, name, True)
                 else:
@@ -124,8 +122,8 @@ def receive_messages():
                         if (int(total_packets) == len(messages[message_type]["packets"])):
                             date_now = datetime.datetime.now().strftime("%H:%M:%S %d/%m/%Y")
                             gatheredPackets = ""
-                            for i in range(int(total_packets)):
-                                gatheredPackets +=  messages[message_type]["packets"][i]
+                            for i in range(1, int(total_packets) + 1):
+                                gatheredPackets +=  messages[message_type]["packets"][str(i)]
                             final_message = f"{addrIp}:{addrPort}/~{name}: {gatheredPackets} {date_now}"
                             print(final_message)   
                             print() 
