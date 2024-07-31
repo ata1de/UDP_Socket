@@ -26,11 +26,11 @@ Fragmentação e Reconstrução de Pacotes:
 Mensagens que ultrapassam o limite de 1024 bytes são fragmentadas em pacotes menores e, ao serem recebidas, são reconstruídas para exibição no terminal do cliente.
 
 Notificações de Conexão e Desconexão:
-
 Quando um novo usuário se conecta à sala, todos os usuários já conectados recebem uma mensagem notificando a nova presença. Da mesma forma, quando um usuário sai da sala, os outros usuários são notificados.
 Comandos de Controle:
 
-Os usuários podem se conectar à sala utilizando o comando:
+Os usuários podem se conectar e se desligar à sala utilizando o comando:
+Para se conectar: "hi meu nome eh". Para se desligar "bye".
 
 
 
