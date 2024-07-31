@@ -13,11 +13,20 @@ O objetivo deste trabalho é desenvolver um sistema de comunicação via UDP, co
 Outro objetivo fundamental do trabalho é adicionar confiabilidade à comunicação através da implementação do protocolo RDT 3.0, garantindo a transferência confiável das mensagens, mesmo em ambientes sujeitos a perda e corrupção de pacotes. Isso envolve a detecção e correção de erros de transmissão utilizando checksums, números de sequência e retransmissão de pacotes em caso de problemas.
 
 
+# Primeira Intrega
+
+
+
+
 
 
 
 # Bibliotecas
 A biblioteca socket foi amplamente empregada ao longo de todo o projeto, desempenhando um papel fundamental na criação e na manutenção das conexões entre o cliente e o servidor.
+
+
+
+
 
 
 # Integrantes
