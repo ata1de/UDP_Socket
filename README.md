@@ -4,9 +4,6 @@
 Este projeto foi desenvolvido para a disciplina de Redes e implementa a comunicação de arquivos utilizando o protocolo UDP com a biblioteca Socket em Python. A aplicação simula um chat de sala única, onde os usuários podem enviar e receber arquivos de texto (.txt) que são exibidos no terminal de cada cliente conectado. Além disso, foi implementado o protocolo RDT 3.0 (Reliable Data Transfer), que adiciona confiabilidade à transmissão de mensagens, garantindo a entrega correta e ordenada mesmo em ambientes sujeitos a perdas e corrupção de pacotes.
 
 
-
-
-
 # Objetivos
 O objetivo deste trabalho é desenvolver um sistema de comunicação via UDP, com a implementação de um chat de sala única que permita a troca de mensagens entre múltiplos clientes de forma simultânea. Além disso, busca-se criar um ambiente de chat onde os usuários possam enviar e receber mensagens com formato específico, incluindo IP, porta, nome do usuário, mensagem e timestamp, bem como notificar os participantes sobre novas conexões à sala.
 
@@ -29,9 +26,8 @@ Notificações de Conexão e Desconexão:
 Quando um novo usuário se conecta à sala, todos os usuários já conectados recebem uma mensagem notificando a nova presença. Da mesma forma, quando um usuário sai da sala, os outros usuários são notificados.
 Comandos de Controle:
 
-Os usuários podem se conectar e se desligar à sala utilizando o comando:
+Os usuários para se conectarem e se desligarem à sala utilizando o comando:
 Para se conectar: "hi meu nome eh". Para se desligar "bye".
-
 
 
 
