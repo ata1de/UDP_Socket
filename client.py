@@ -188,5 +188,16 @@ while not leaved:
         # Processa o comando de login do usuário
         name = getUserName(intro)
         send_login_message(name)
-        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo
+        print(f"Olá, {name} 😃! Vamos começar o chat! Digite sua mensagem abaixo)
+        while True:
+            message = input()
+            if (message.lower() == "bye"):
+                send_bye_message(name)
+                leaved = True
+                break
+            send_message(message, name)
+    else:
+        print("😭 Deu errado! Pra se conectar a sala digite 'hi, meu nome eh <nome_do_usuario>':")
+        
+    
 
