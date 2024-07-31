@@ -18,8 +18,8 @@ Este projeto foi desenvolvido como parte da disciplina de Redes e consiste na im
 ### Funcionalidades Implementadas
 Conexão de Múltiplos Clientes:
 A aplicação suporta múltiplos clientes conectados ao mesmo tempo, sem interrupção do funcionamento do chat. Cada cliente pode enviar e receber mensagens de todos os outros participantes na sala.
-Troca de Arquivos de Texto (.txt):
 
+Troca de Arquivos de Texto (.txt):
 Os usuários podem enviar mensagens que são convertidas em arquivos .txt e enviadas ao servidor. O servidor, por sua vez, repassa o arquivo de texto para todos os outros clientes conectados.
 
 Fragmentação e Reconstrução de Pacotes:
