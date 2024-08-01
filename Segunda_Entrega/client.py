@@ -71,7 +71,6 @@ class Client:
         total_size = len(file_content)
         # Calcula o número total de pacotes necessários removendo os bits do cabeçalho
         total_packets = ceil(total_size / (self.BUFFER_SIZE - 100))
-        total_packets = total_packets if total_packets > 0 else 1
 
         randomId = random_lowercase_string()  # Gera um ID aleatório para o arquivo
         expected_seq_num = 0  # Número de sequência esperado do próximo pacote
@@ -99,7 +98,6 @@ class Client:
             self.send_file(filename, name)  # Envia o arquivo contendo a mensagem
             os.remove(filename)  # Remove o arquivo temporário
 
-# ----------------------------------------------------------------------------------------------------------------------
     # Envia uma mensagem de login para o servidor
     def send_login_message(self, name):
         login_message = f"LOGIN|{name}".encode('utf-8')

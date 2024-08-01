@@ -39,7 +39,6 @@ class Server:
         total_size = len(file_content)
         # Calcula o número total de pacotes necessários removendo os bits do cabeçalho
         total_packets = ceil(total_size / (self.BUFFER_SIZE - 100))
-        total_packets = total_packets if total_packets > 0 else 1
         randomId = random_lowercase_string()
 
         # Envia os pacotes para o cliente
